@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title></title>
+    <script src="./howler.js"></script>
     <style>
 		* {
 			box-sizing: border-box;
@@ -216,28 +217,6 @@
     const END_BUTTON_TEXT = '测试重新开始';
     const isPC = !/android|iphone/i.test(navigator.userAgent);
 
-    Audio.init = function () {
-        Audio.pools = [];
-        for (let i = 0; i < AUDIO_POOL_SIZE; i++) {
-            const audio = document.createElement('audio');
-            Audio.pools.push(audio);
-        }
-    }
-
-    function Audio (src) {
-        this.src = src;
-    }
-
-    Audio.prototype.play = function () {
-        for (let i = 0; i < 10; i++) {
-            if (!Audio.pools[i].src || Audio.pools[i].ended) {
-                Audio.pools[i].src = this.src;
-                Audio.pools[i].play();
-                break;
-            }
-        }
-    }
-
     function Game () {
         this.time = 0;
         this.rows = 0;
@@ -277,13 +256,12 @@
             };
         });
     }
+    
     Game.prototype.loadAudio = function (src) {
         return new Promise((resolve) => {
-            const audio = document.createElement('audio');
-            audio.oncanplay = () => {
-                resolve(new Audio(src));
-            };
-            audio.src = src;
+            resolve(new Howl({
+                src
+            }));
         });
     }
 
@@ -340,7 +318,6 @@
     }
 
     Game.prototype.init = function () {
-        Audio.init();
         document.title = PAGE_TITLE;
         const gameInitTitle = document.querySelector('.game-init-title');
         const gameInitSubTitle = document.querySelector('.game-init-sub-title');
@@ -415,6 +392,7 @@
                 div.style.justifyContent = 'center';
                 div.style.display = 'flex';
                 div.style.alignItems = 'center';
+                div.style.userSelect = 'none';
                 div.style.color = 'rgba(225,225,0,0.9)';
                 div.style.fontSize = '40px';
                 div.textContent = KEY_CODE[i - COLS * (ROWS + 1)];
