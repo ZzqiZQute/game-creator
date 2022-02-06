@@ -1,0 +1,627 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title></title>
+    <style>
+		* {
+			box-sizing: border-box;
+		}
+
+		html {
+			height: 100%;
+		}
+
+		body {
+			margin: 0;
+			height: 100%;
+			background: #666;
+		}
+
+		#app {
+			max-width: 640px;
+			margin: 0 auto;
+			height: 100%;
+			overflow: hidden;
+			background: #fff;
+		}
+
+		.game-init {
+			width: 100%;
+			height: 100%;
+			display: flow-root;
+			background: #ccc;
+
+		}
+
+		.game-init-title {
+			margin-top: 60px;
+			text-align: center;
+			font-size: 36px;
+			font-weight: bold;
+			color: #fd0;
+		}
+
+		.game-init-sub-title {
+			margin-top: 40px;
+			text-align: center;
+			font-size: 24px;
+			color: #fff;
+		}
+
+		.game-init-start {
+			cursor: pointer;
+			user-select: none;
+			font-size: 32px;
+			width: 240px;
+			padding: 5px;
+			text-align: center;
+			background: darkred;
+			margin: 80px auto 0;
+			color: white;
+		}
+
+		.game-init-start.ready {
+			background: red;
+		}
+
+		.game-start {
+			width: 100%;
+			height: 100%;
+		}
+
+		.game-start-timer {
+			position: absolute;
+			width: 100%;
+			left: 0;
+			top: 50px;
+			color: red;
+			height: auto;
+		}
+
+		.game-start-timer-text {
+			margin: 0 auto;
+			text-align: center;
+			font-family: "Helvetica Neue", Helvetica, STHeiTi, sans-serif;
+			font-size: 44px;
+			font-weight: bold;
+			padding: 10px;
+			text-shadow: 0 0 10px #ccc;
+		}
+
+		.game-start-speed {
+			position: absolute;
+			width: 100%;
+			left: 0;
+			top: 150px;
+			color: red;
+			height: auto;
+		}
+
+		.game-start-speed-text {
+			margin: 0 auto;
+			text-align: center;
+			font-family: "Helvetica Neue", Helvetica, STHeiTi, sans-serif;
+			font-size: 24px;
+			font-weight: bold;
+			padding: 10px;
+			text-shadow: 0 0 10px #ccc;
+		}
+
+		.game-start-world {
+			height: 100%;
+			width: 100%;
+			bottom: 0;
+			position: relative;
+		}
+
+		.game-start-world.transition {
+			transition: transform 80ms linear;
+		}
+
+		@keyframes error {
+			0% {
+				background: transparent;
+			}
+			25% {
+				background: red;
+			}
+			50% {
+				background: transparent;
+			}
+			75% {
+				background: red;
+			}
+			100% {
+				background: transparent;
+			}
+		}
+
+		.game-start-world .error {
+			animation: error 1s ease 0s 1;
+		}
+
+		.game-end {
+			height: 100%;
+			width: 100%;
+			position: absolute;
+			top: 0;
+			left: 0;
+			background: rgba(0, 0, 0, .7);
+		}
+
+		.game-end-hint {
+			font-size: 32px;
+			font-weight: bold;
+			text-align: center;
+			color: #fff;
+			margin-top: 50px;
+		}
+
+		.game-end-restart {
+			cursor: pointer;
+			user-select: none;
+			font-size: 32px;
+			width: 240px;
+			padding: 5px;
+			text-align: center;
+			background: red;
+			margin: 80px auto 0;
+			color: white;
+		}
+
+		.before-img {
+			background: url("./WechatIMG3.png") center / contain no-repeat
+		}
+
+		.after-img {
+			background: url("./WechatIMG2.png") center / contain no-repeat
+		}
+    </style>
+</head>
+<body>
+<div id="app">
+    <div class="game-init">
+        <div class="game-init-title"></div>
+        <div class="game-init-sub-title"></div>
+        <div class="game-init-start"></div>
+    </div>
+    <div class="game-start">
+        <div class="game-start-world"></div>
+        <div class="game-start-timer">
+            <div class="game-start-timer-text"></div>
+        </div>
+        <div class="game-start-speed">
+            <div class="game-start-speed-text"></div>
+        </div>
+    </div>
+    <div class="game-end">
+        <div class="game-end-hint"></div>
+        <div class="game-end-restart"></div>
+    </div>
+</div>
+<script>
+    const TIME = 20000;
+    const COLS = 4;
+    const ROWS = 6;
+    const AUDIO_POOL_SIZE = 25;
+    const KEY_CODE = ['F', 'G', 'H', 'J', 'K', 'L'];
+    const PAGE_TITLE = '测试页面标题';
+    const TITLE = '测试标题';
+    const SUBTITLE = '测试子标题';
+    const START_BUTTON_TEXT = '测试开始按钮';
+    const END_HINT = '[{"hint": "分数为<score>"}]'
+    const END_BUTTON_TEXT = '测试重新开始';
+    const isPC = !/android|iphone/i.test(navigator.userAgent);
+
+    Audio.init = function () {
+        Audio.pools = [];
+        for (let i = 0; i < AUDIO_POOL_SIZE; i++) {
+            const audio = document.createElement('audio');
+            Audio.pools.push(audio);
+        }
+    }
+
+    function Audio (src) {
+        this.src = src;
+    }
+
+    Audio.prototype.play = function () {
+        for (let i = 0; i < 10; i++) {
+            if (!Audio.pools[i].src || Audio.pools[i].ended) {
+                Audio.pools[i].src = this.src;
+                Audio.pools[i].play();
+                break;
+            }
+        }
+    }
+
+    function Game () {
+        this.time = 0;
+        this.rows = 0;
+        this.random = Math.random;
+        this.list = [];
+        // this.beforeImg = '';
+        // this.afterImg = '';
+        this.gameOverFlag = false;
+        this.startFlag = false;
+        this.blockHeight = 0;
+        this.blockWidth = 0;
+        this.tapHanlder = null;
+        this.keyHandler = null;
+        this.canHit = true;
+        this.score = 0;
+    }
+
+    function padLeftWith0 (str, len) {
+        if (len <= str.length) {
+            return str;
+        } else {
+            return Array.from({ length: len - str.length + 1 }).join('0') + str;
+        }
+    }
+
+    function p2 (str) {
+        return padLeftWith0(str, 2);
+    }
+
+    Game.prototype.loadImg = function (src) {
+        return new Promise((resolve) => {
+            const img = new Image;
+            img.src = src;
+            img.crossOrigin = 'anonymous';
+            img.onload = () => {
+                resolve();
+            };
+        });
+    }
+    Game.prototype.loadAudio = function (src) {
+        return new Promise((resolve) => {
+            const audio = document.createElement('audio');
+            audio.oncanplay = () => {
+                resolve(new Audio(src));
+            };
+            audio.src = src;
+        });
+    }
+
+    Game.prototype.initResources = function () {
+        return Promise.all([
+            this.loadImg('./WechatIMG3.png'),
+            this.loadImg('./WechatIMG2.png')
+        , new Promise((resolve) => {
+            this.loadAudio('./static_music_tap.mp3').then((audio) => {
+                this.shootAudio = audio;
+                resolve();
+            });
+        })]);
+    }
+
+    Game.prototype.getSpeed = function () {
+        return this.score * 1000 / this.time;
+    }
+
+    Game.prototype.computeEndHint = function () {
+        try {
+            const arr = JSON.parse(END_HINT);
+            if (Array.isArray(arr)) {
+                for (let i = 0; i < arr.length; i++) {
+                    const obj = arr[i];
+                    if (obj.gt && obj.lt) {
+                        if (this.score <= obj.gt || this.score >= obj.lt) {
+                            continue;
+                        }
+                    } else if (obj.gt) {
+                        if (this.score <= obj.gt) {
+                            continue;
+                        }
+                    } else if (obj.lt) {
+                        if (this.score >= obj.lt) {
+                            continue;
+                        }
+                    }
+                    return obj.hint.replace(/<score>/g, this.score);
+                }
+            }
+            return '';
+        } catch (e) {
+            return e.message;
+        }
+    }
+
+    Game.prototype.showEnd = function () {
+        setTimeout(() => {
+            const gameEnd = document.querySelector('.game-end');
+            gameEnd.style.display = 'block';
+            this.gameEndHint.textContent = this.computeEndHint();
+        }, 1500);
+    }
+
+    Game.prototype.init = function () {
+        Audio.init();
+        document.title = PAGE_TITLE;
+        const gameInitTitle = document.querySelector('.game-init-title');
+        const gameInitSubTitle = document.querySelector('.game-init-sub-title');
+        gameInitTitle.textContent = TITLE;
+        gameInitSubTitle.textContent = SUBTITLE;
+        const gameInit = document.querySelector('.game-init');
+        const gameStart = document.querySelector('.game-start');
+        const gameInitStart = document.querySelector('.game-init-start');
+        const gameStartTimerText = document.querySelector('.game-start-timer-text');
+        const gameEnd = document.querySelector('.game-end');
+        const gameEndRestart = document.querySelector('.game-end-restart');
+        this.world = document.querySelector('.game-start-world');
+        this.gameEndHint = document.querySelector('.game-end-hint');
+        gameStart.style.display = 'none';
+        gameEnd.style.display = 'none';
+        gameInitStart.textContent = START_BUTTON_TEXT;
+        gameEndRestart.textContent = END_BUTTON_TEXT;
+        gameEndRestart.addEventListener('click', () => {
+            this.reset();
+            gameStartTimerText.innerHTML = this.getTimeStr();
+            this.tapHanlder = this.tap.bind(this);
+            this.keyHandler = this.key.bind(this);
+            window.addEventListener('pointerdown', this.tapHanlder);
+            window.addEventListener('keydown', this.keyHandler);
+        });
+        this.initResources().then(() => {
+            gameInitStart.classList.add('ready');
+            gameInitStart.addEventListener('click', () => {
+                gameInit.style.display = 'none';
+                gameStart.style.display = 'block';
+                gameStartTimerText.innerHTML = this.getTimeStr();
+                this.reset();
+                this.tapHanlder = this.tap.bind(this);
+                this.keyHandler = this.key.bind(this);
+                window.addEventListener('pointerdown', this.tapHanlder);
+                window.addEventListener('keydown', this.keyHandler);
+            });
+        });
+    }
+
+    Game.prototype.render = function () {
+        const world = this.world;
+        for (let i = 0; i < ROWS; i++) {
+            const index = (ROWS + i) * COLS + this.list[ROWS + this.score + i];
+            const dom = world.children[index];
+            if (dom) {
+                if (i === 0) {
+                    if (this.score !== 0) {
+                        dom.classList.add('after-img');
+                    }
+                } else {
+                    dom.classList.add('before-img');
+                }
+            }
+        }
+        if (isPC) {
+            for (let i = ROWS * COLS; i < (ROWS + 1) * COLS ; i++) {
+                const dom = world.children[i];
+                const div = dom.querySelector('div');
+                if (div) {
+                    div.remove();
+                }
+            }
+            for (let i = (ROWS + 1) * COLS; i < (ROWS + 2) * COLS; i++) {
+                const dom = world.children[i];
+                const div = document.createElement('div');
+                div.style.position = 'absolute';
+                div.style.left = '0px';
+                div.style.top = '0px'
+                div.style.width = '100%';
+                div.style.height = '100%';
+                div.style.justifyContent = 'center';
+                div.style.display = 'flex';
+                div.style.alignItems = 'center';
+                div.style.color = 'rgba(225,225,0,0.9)';
+                div.style.fontSize = '40px';
+                div.textContent = KEY_CODE[i - COLS * (ROWS + 1)];
+                dom.append(div);
+            }
+        }
+
+    }
+
+    Game.prototype.hit = function (x) {
+        const world = this.world;
+        const block = world.children[(ROWS + 1) * COLS + this.list[ROWS + this.score + 1]];
+        const { left, right } = block.getBoundingClientRect();
+        return x >= left && x <= right;
+    }
+
+    Game.prototype.next = function () {
+        this.world.classList.add('transition');
+        this.world.style.transform = 'translate3d(0, ' + this.blockHeight * (this.score + ROWS + 1) + 'px, 0)';
+        this.list.push(this.getRandomIndex());
+        this.score++;
+        this.canHit = true;
+        for (let j = 0; j < COLS; j++) {
+            const div = document.createElement('div');
+            div.style.position = 'absolute';
+            div.style.bottom = ((this.score + ROWS * 2) * this.blockHeight) + 'px';
+            div.style.height = this.blockHeight + 'px';
+            div.style.left = (j * this.blockWidth) + 'px';
+            div.style.width = this.blockWidth + 'px';
+            if (j > 0) {
+                div.style.borderLeft = '1px solid gray';
+            }
+            div.style.borderBottom = '1px solid gray';
+            div.style.display = 'flex';
+            div.style.justifyContent = 'center';
+            div.style.alignItems = 'center';
+            div.style.userSelect = 'none';
+            this.world.append(div);
+        }
+        Array.from(this.world.children).slice(0, COLS).forEach((it) => it.remove());
+        this.render();
+        this.shootAudio.play();
+    }
+
+    Game.prototype.reset = function () {
+        const gameEnd = document.querySelector('.game-end');
+        gameEnd.style.display = 'none';
+        const gameStartSpeedText = document.querySelector('.game-start-speed-text');
+        gameStartSpeedText.textContent = '';
+        this.createWorld();
+    }
+    Game.prototype.key = function (e) {
+        const key = e.key.toUpperCase();
+        if (KEY_CODE.slice(0, COLS).indexOf(key) === -1) {
+            return;
+        }
+        const hit = key === KEY_CODE[this.list[ROWS + this.score + 1]];
+        if (this.canHit) {
+            if (!this.gameOverFlag && hit) {
+                if (!this.startFlag) {
+                    this.startFlag = true;
+                    this.start();
+                }
+                this.canHit = false;
+                this.next();
+            } else if (this.startFlag && !hit) {
+                this.gameOverFlag = true;
+                this.stop();
+                for (let index = (ROWS + 1) * COLS; index < (ROWS + 2) * COLS; index++) {
+                    const dom = this.world.children[index];
+                    if (dom) {
+                        if (index !== (ROWS + 1) * COLS + this.list[ROWS + this.score + 1]) {
+                            dom.classList.add('error');
+                            const div = dom.children[0];
+                            if (div) {
+                                div.textContent = e.key.toUpperCase();
+                            }
+                        }
+                    }
+                }
+                this.showEnd();
+                window.removeEventListener('pointerdown', this.tapHanlder);
+                window.removeEventListener('keydown', this.keyHandler);
+            }
+        }
+    }
+    Game.prototype.tap = function (e) {
+        const x = e.clientX;
+        const hit = this.hit(x);
+        const app = document.querySelector('#app');
+        const { left, right } = app.getBoundingClientRect();
+        if (x >= left && x <= right) {
+            if (this.canHit) {
+                if (!this.gameOverFlag && hit) {
+                    if (!this.startFlag) {
+                        this.startFlag = true;
+                        this.start();
+                    }
+                    this.canHit = false;
+                    this.next();
+                } else if (this.startFlag && !hit) {
+                    this.gameOverFlag = true;
+                    this.stop();
+                    const index = (ROWS + 1) * COLS + Math.floor((x - left) / this.blockWidth);
+                    const dom = this.world.children[index];
+                    if (dom) {
+                        dom.classList.add('error');
+                    }
+                    this.showEnd();
+                    window.removeEventListener('pointerdown', this.tapHanlder);
+                    window.removeEventListener('keydown', this.keyHandler);
+                }
+            }
+        }
+    }
+
+
+    Game.prototype.createWorld = function () {
+        this.time = 0;
+        this.score = 0;
+        this.canHit = true;
+        this.startFlag = false;
+        this.gameOverFlag = false;
+        const gameStart = document.querySelector('.game-start');
+        const world = this.world;
+        world.classList.remove('transition');
+        Array.from(world.children).forEach((it) => it.remove());
+        const { width, height } = gameStart.getBoundingClientRect();
+        const blockWidth = width / COLS;
+        const blockHeight = height / ROWS;
+        this.blockWidth = blockWidth;
+        this.blockHeight = blockHeight;
+        world.style.transform = 'translate3d(0, ' + this.blockHeight * (this.score + ROWS) +'px, 0)';
+        this.rows = Math.ceil(height / blockHeight) + 1;
+        this.list = Array.from({length: ROWS}).map(() => 0);
+        for (let i = 0; i < this.rows + ROWS; i++) {
+            for (let j = 0; j < COLS; j++) {
+                const div = document.createElement('div');
+                div.style.position = 'absolute';
+                div.style.bottom = (i * blockHeight) + 'px';
+                div.style.height = blockHeight + 'px';
+                div.style.left = (j * blockWidth) + 'px';
+                div.style.width = blockWidth + 'px';
+                if (j > 0) {
+                    div.style.borderLeft = '1px solid gray';
+                }
+                div.style.borderBottom = '1px solid gray';
+                div.style.display = 'flex';
+                div.style.justifyContent = 'center';
+                div.style.alignItems = 'center';
+                world.append(div);
+            }
+            this.list.push(this.getRandomIndex());
+        }
+        this.render();
+    }
+
+    Game.prototype.getRandomIndex = function () {
+        return Math.floor(this.random() * COLS);
+    }
+
+    Game.prototype.start = function () {
+        let now = Date.now();
+        let that = this;
+        const gameStartTimerText = document.querySelector('.game-start-timer-text');
+        const gameStartSpeedText = document.querySelector('.game-start-speed-text');
+
+        function handler () {
+            let n = Date.now();
+            that.time += n - now;
+            now = n;
+            gameStartTimerText.innerHTML = that.getTimeStr();
+            gameStartSpeedText.textContent = that.getSpeed().toFixed(2) + '次/秒';
+            that.gameAnimationFrame = requestAnimationFrame(handler);
+            if (that.time >= TIME) {
+                that.gameOverFlag = true;
+                that.stop();
+                window.removeEventListener('pointerdown', that.tapHanlder);
+                window.removeEventListener('keydown', that.keyHandler);
+                gameStartTimerText.innerHTML = '时间到！'
+                that.showEnd();
+
+            }
+        }
+
+        this.gameAnimationFrame = requestAnimationFrame(handler);
+    }
+
+    Game.prototype.stop = function () {
+        cancelAnimationFrame(this.gameAnimationFrame);
+    }
+
+    Game.prototype.getTimeStr = function () {
+        const restTime = TIME - this.time;
+        const second = Math.floor(restTime / 1000);
+        const millisecond = restTime - 1000 * second;
+        return p2(second.toString()) + '\'' + p2((Math.floor(millisecond / 10)).toString()) + '"';
+    }
+
+    function init () {
+        const game = new Game();
+        game.init();
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        init();
+    });
+</script>
+</body>
+</html>
